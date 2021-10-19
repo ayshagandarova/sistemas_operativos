@@ -6,7 +6,7 @@ Devuelve la longitud de la cadena apuntada por str. No devuelve error.
 */
 size_t my_strlen(const char *str){
     size_t len = 0;
-    while (*str++) { // comprueba el caracter y avanza a la siguiente posición
+    while (*str++) { // comprueba el carácter y avanza a la siguiente posición
        len++;
     }
     return len;
@@ -79,11 +79,13 @@ escanea la cadena apuntada por str (terminada con el carácter nulo) buscando la
 Devuelve el puntero a la primera ocurrencia del carácter c en la cadena str o NULL si el carácter no se encuentra. No devuelve error.
 */
 char *my_strchr(const char *s, int c){
-    int i=0;
-    while (*(s + i)==c){
-        i++;
+    if(!*s){
+        return NULL;
     }
-    char *p=*(s+i);
-    
-    return p;
+    while (*s++){
+        if(*s==c){
+            return (char*) s;
+        }
+    }
+    return NULL; // no se ha encontrado el carácter
 }
