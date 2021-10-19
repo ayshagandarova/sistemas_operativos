@@ -20,10 +20,17 @@ Devuelve un entero:
 = 0 indica que str1 = str2.
 No se basa en la longitud de las cadenas sino en los códigos ASCII de cada carácter. 
 Compara carácter a carácter y cuando encuentra uno diferente reporta el resultado calculado como la resta de los códigos ASCII de los caracteres diferentes.
-
  */
 int my_strcmp(const char *str1, const char *str2){
-
+    for (;*str1 == *str2; str1++ && str2++){
+    }
+    if (*str1==*str2){
+        return 0;
+    } else if (*str1 < *str2){
+        return -1;
+    } else{
+        return 1;
+    }
 }
 
 /*
@@ -31,7 +38,12 @@ copia la cadena apuntada por src (con el carácter de terminación ‘\0’) en 
 Devuelve el puntero dest. No devuelve error.
 */
 char *my_strcpy(char *dest, const char *src){
-
+    while (*src){
+        *dest = *src;
+        dest++;
+        src++;
+    }
+    return dest;
 }
 
 /*
