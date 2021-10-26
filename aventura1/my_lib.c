@@ -82,10 +82,35 @@ char *my_strchr(const char *s, int c){
     if(!*s){
         return NULL;
     }
-    while (*s++){
+    while (*s++){ // recorremos la cadena hasta encontrar el carácter c
         if(*s==c){
-            return (char*) s;
+            return (char*) s;  // devolvemos el puntero a la cadena
         }
     }
     return NULL; // no se ha encontrado el carácter
+}
+
+
+// FUNCIONES DE LA PILA
+
+struct my_stack *my_stack_init(int size){
+
+}
+int my_stack_push(struct my_stack *stack, void *data){
+
+}
+void *my_stack_pop(struct my_stack *stack){
+
+}
+int my_stack_len(struct my_stack *stack){
+
+}
+int my_stack_purge(struct my_stack *stack){
+    
+}
+struct my_stack *my_stack_read(char *filename){
+
+}
+int my_stack_write(struct my_stack *stack, char *filename){
+
 }
