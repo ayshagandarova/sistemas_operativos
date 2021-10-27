@@ -93,20 +93,104 @@ char *my_strchr(const char *s, int c){
 
 // FUNCIONES DE LA PILA
 
+/*
+Reserva espacio para una variable de tipo struct my_stack, que contendrá el puntero top al 
+nodo superior de la pila y el tamaño de los datos size. Inicializa top con NULL, como valor 
+del puntero al nodo superior de la pila, y size con el tamaño de datos que nos pasan como parámetro.
+Devuelve un puntero a la pila inicializada (struct my_stack).
+*/
 struct my_stack *my_stack_init(int size){
 
+    struct my_stack *init;
+
+    init = malloc(sizeof(struct my_stack));
+    if (init == NULL){
+        return EXIT_FAILURE;
+    }
+    init->size = size;
+    init->top = NULL;
+
+    return init;
 }
+
+/*
+Inserta un nuevo nodo en los elementos de la pila (hay que reservar espacio de memoria 
+para él). El puntero a los datos de ese nodo (data) nos lo pasan como parámetro .
+*/
 int my_stack_push(struct my_stack *stack, void *data){
+    struct my_stack_node *nuevo_nodo;
 
+    //reservamos espacio para el nodo
+    nuevo_nodo = malloc(sizeof(struct my_stack_node));
+
+    if (nuevo_nodo == NULL){ // comprobamos si hay espacio
+        // Añadimos el nuevo nodo a la pila
+        // el nuevo nodo apunta al que apuntaba top
+        nuevo_nodo->data = data;
+        nuevo_nodo->next = stack->top;
+        // hacemos que top apunte al nuevo nodo 
+        stack->top = nuevo_nodo;
+
+        return EXIT_SUCCESS;
+    }
+    return EXIT_FAILURE;
 }
+
+/*
+Elimina el nodo superior de los elementos de la pila (y libera la memoria que ocupaba ese nodo!). 
+Devuelve el puntero a los datos del elemento eliminado. 
+Si no existe nodo superior (pila vacía), retorna NULL.
+*/
 void *my_stack_pop(struct my_stack *stack){
-
+    if (stack){ 
+        struct my_stack_node *nodo_aux = stack->top; 
+        void *data = nodo_aux->data;
+        stack->top = nodo_aux->next;
+        free(nodo_aux);
+        return data;
+    }
+    // si no hay elementos que eliminar devolvemos NULL
+    return NULL; 
 }
+
+/*
+Recorre la pila y retorna el número de nodos totales que hay en los elementos de la pila.
+*/
 int my_stack_len(struct my_stack *stack){
+    struct my_stack_node *nodo_aux = stack->top; 
+    int i=1; // empezamos por el primer elemento
+    if(stack == NULL){ // si no hay elementos en la pila
+        return 0;
+    }
 
+    while (nodo_aux->next){ // 
+        nodo_aux = nodo_aux->next; // avanzamos
+        i++;
+    }
+
+    return i;
 }
+
+/*
+Recorre la pila liberando la memoria que habíamos reservado para cada uno de los datos (data)
+y la de cada nodo. Finalmente libera también la memoria que ocupa el struck my_stack. Es decir, 
+toda la memoria que se reservó con malloc() en algún momento, se libera con la función free(). 
+Devuelve el número de bytes liberados. 
+*/
 int my_stack_purge(struct my_stack *stack){
-    
+    struct my_stack_node *nodo_aux = stack->top;
+    int num_bytes = 0;
+    while (nodo_aux){ 
+        nodo_aux = stack->top;
+        stack->top = nodo_aux->next;
+        free(nodo_aux->data);
+        free(nodo_aux);
+        num_bytes += sizeof(struct my_stack_node); 
+    }
+
+    free(stack);
+    num_bytes += sizeof(struct my_stack);
+    return num_bytes; 
 }
 struct my_stack *my_stack_read(char *filename){
 

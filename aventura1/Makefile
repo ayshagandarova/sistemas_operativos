@@ -2,10 +2,10 @@ CC=gcc # compilador
 CFLAGS=-c -g -Wall -std=c99 #flags para el compilador
 LDFLAGS= #flags para enlazador
 
-SOURCES=my_lib.c test1.c #test2a.c test2b.c
+SOURCES=my_lib.c test1.c test2a.c test2b.c
 LIBRARIES=my_lib.o 
 INCLUDES=my_lib.h
-PROGRAMS=test1 # test2a test2b
+PROGRAMS=test1 test2a test2b
 
 OBJS=$(SOURCES:.c=.o)
 

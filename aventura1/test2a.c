@@ -10,6 +10,7 @@ struct my_data {
 };
  
 int main() {
+    printf("HOLAAA");
    struct my_stack *s;
    struct my_data *data1, *data2;
    char *names[]={"Xisco", "Cati"};
