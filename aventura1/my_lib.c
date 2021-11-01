@@ -100,13 +100,12 @@ del puntero al nodo superior de la pila, y size con el tamaño de datos que nos 
 Devuelve un puntero a la pila inicializada (struct my_stack).
 */
 struct my_stack *my_stack_init(int size){
-
     struct my_stack *init;
 
     init = malloc(sizeof(struct my_stack));
-    if (init == NULL){
-        return EXIT_FAILURE;
-    }
+    // if (init == NULL){    // no te pide que devuelva error...
+    //     return EXIT_FAILURE;
+    // }
     init->size = size;
     init->top = NULL;
 
@@ -186,15 +185,18 @@ int my_stack_purge(struct my_stack *stack){
         free(nodo_aux->data);
         free(nodo_aux);
         num_bytes += sizeof(struct my_stack_node); 
+        num_bytes += stack->size;
     }
 
     free(stack);
     num_bytes += sizeof(struct my_stack);
     return num_bytes; 
 }
-struct my_stack *my_stack_read(char *filename){
-
+/*struct my_stack *my_stack_read(char *filename){
+    struct my_stack *init;
+    return init;
 }
 int my_stack_write(struct my_stack *stack, char *filename){
-
-}
+    int i=0;
+    return i;
+}*/

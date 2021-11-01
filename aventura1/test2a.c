@@ -18,6 +18,7 @@ int main() {
     //inicializamos la pila
    s = my_stack_init(sizeof(struct my_data));
    printf("Longitud inicial de la pila: %d\n", my_stack_len(s));
+
    //introducimos 2 nodos en la pila
    printf ("\nIntroducimos los nodos en la pila:\n");
    for (int i = 0; i < 2; i++) {
@@ -48,4 +49,5 @@ int main() {
 
    //liberamos todo el espacio ocupado por la pila
    printf ("\nLiberamos %lu bytes del struct my_stack, %lu bytes de los nodos y %lu de los datos. Total: %d\n", sizeof (struct my_stack), sizeof (struct my_stack_node)*2, sizeof(struct my_data)*2, my_stack_purge(s));
+
 }
