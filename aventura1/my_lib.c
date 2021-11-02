@@ -74,9 +74,11 @@ char *my_strcat(char *dest, const char *src){
     return dest;
 }
 
+
 /*
 escanea la cadena apuntada por str (terminada con el carácter nulo) buscando la primera ocurrencia del carácter c. 
 Devuelve el puntero a la primera ocurrencia del carácter c en la cadena str o NULL si el carácter no se encuentra. No devuelve error.
+
 */
 char *my_strchr(const char *s, int c){
     if(!*s){
@@ -103,9 +105,6 @@ struct my_stack *my_stack_init(int size){
     struct my_stack *init;
 
     init = malloc(sizeof(struct my_stack));
-    // if (init == NULL){    // no te pide que devuelva error...
-    //     return EXIT_FAILURE;
-    // }
     init->size = size;
     init->top = NULL;
 
@@ -122,7 +121,7 @@ int my_stack_push(struct my_stack *stack, void *data){
     //reservamos espacio para el nodo
     nuevo_nodo = malloc(sizeof(struct my_stack_node));
 
-    if (nuevo_nodo == NULL){ // comprobamos si hay espacio
+    if (nuevo_nodo != NULL){ // comprobamos si hay espacio
         // Añadimos el nuevo nodo a la pila
         // el nuevo nodo apunta al que apuntaba top
         nuevo_nodo->data = data;
@@ -141,7 +140,7 @@ Devuelve el puntero a los datos del elemento eliminado.
 Si no existe nodo superior (pila vacía), retorna NULL.
 */
 void *my_stack_pop(struct my_stack *stack){
-    if (stack){ 
+    if (stack->top !=NULL){ 
         struct my_stack_node *nodo_aux = stack->top; 
         void *data = nodo_aux->data;
         stack->top = nodo_aux->next;
@@ -157,12 +156,12 @@ Recorre la pila y retorna el número de nodos totales que hay en los elementos 
 */
 int my_stack_len(struct my_stack *stack){
     struct my_stack_node *nodo_aux = stack->top; 
-    int i=1; // empezamos por el primer elemento
-    if(stack == NULL){ // si no hay elementos en la pila
-        return 0;
-    }
+    int i=0; // empezamos por el primer elemento
+ //   if(stack == NULL){ // si no hay elementos en la pila
+   //     return 0;
+    //}
 
-    while (nodo_aux->next){ // 
+    while (nodo_aux != NULL){ // 
         nodo_aux = nodo_aux->next; // avanzamos
         i++;
     }
@@ -179,24 +178,24 @@ Devuelve el número de bytes liberados.
 int my_stack_purge(struct my_stack *stack){
     struct my_stack_node *nodo_aux = stack->top;
     int num_bytes = 0;
-    while (nodo_aux){ 
-        nodo_aux = stack->top;
-        stack->top = nodo_aux->next;
-        free(nodo_aux->data);
-        free(nodo_aux);
+    while (nodo_aux != NULL && stack->top!=NULL){ 
         num_bytes += sizeof(struct my_stack_node); 
         num_bytes += stack->size;
+        stack->top = nodo_aux->next;
+        free(nodo_aux);
+        nodo_aux = stack->top;
     }
-
-    free(stack);
     num_bytes += sizeof(struct my_stack);
+    free(stack);
     return num_bytes; 
 }
-/*struct my_stack *my_stack_read(char *filename){
+
+struct my_stack *my_stack_read(char *filename){
     struct my_stack *init;
     return init;
 }
+
 int my_stack_write(struct my_stack *stack, char *filename){
     int i=0;
     return i;
-}*/
+}
