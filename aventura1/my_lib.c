@@ -157,10 +157,6 @@ Recorre la pila y retorna el número de nodos totales que hay en los elementos 
 int my_stack_len(struct my_stack *stack){
     struct my_stack_node *nodo_aux = stack->top; 
     int i=0; // empezamos por el primer elemento
- //   if(stack == NULL){ // si no hay elementos en la pila
-   //     return 0;
-    //}
-
     while (nodo_aux != NULL){ // 
         nodo_aux = nodo_aux->next; // avanzamos
         i++;
@@ -189,13 +185,59 @@ int my_stack_purge(struct my_stack *stack){
     free(stack);
     return num_bytes; 
 }
-
-struct my_stack *my_stack_read(char *filename){
-    struct my_stack *init;
-    return init;
+int my_stack_write1(struct my_stack *stack, struct my_stack_node *node, int fd){
+    int num=0;
+    if (node != NULL ){
+        node = node->next;
+        num = num + my_stack_write1(stack, node, fd);
+        write(fd, node->data, stack->size);
+    }
+	
+    return num+1;
 }
 
 int my_stack_write(struct my_stack *stack, char *filename){
-    int i=0;
-    return i;
+   struct my_stack *stackAux = my_stack_init(stack->size);
+	struct my_stack_node *nodoAux;
+	int numNodos = 0;
+	nodoAux = stack->top; 
+	while (nodoAux != NULL)	{ //guarda todos los nodos en la pila auxiliar
+		my_stack_push(stackAux, nodoAux->data); 
+		numNodos++;
+		nodoAux = nodoAux->next; 
+	}
+	int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+	if (fd == -1)	{ //si se produce error al abrir el fichero
+		return -1;
+	}
+	int tamData = stack->size;
+	write(fd, &tamData, sizeof(int)); //el primer elemento del fichero será el tamaño de Data
+	for (int i = 0; i < numNodos; i++)	{
+		write(fd, my_stack_pop(stackAux), stackAux->size);
+	}
+	if (close(fd) == -1)	{ //si hay error al cerrar fichero
+		return -1;
+	}
+	return numNodos;
 }
+
+struct my_stack *my_stack_read(char *filename){
+    int fd = open(filename, O_RDONLY);
+	if (fd == -1)	{  //si hay algún error al abrir el fichero
+		return NULL;
+	}
+    int size= 0;
+	read(fd, &size, sizeof(int)); //guardamos el tamaño de Data en tamData
+	struct my_stack *stack = my_stack_init(size);  // creamos la pila
+    
+    void *data = malloc(size);
+	while (read(fd, data, size) >0) { 
+		my_stack_push(stack, data);	
+		data = malloc(size);
+	}
+	if (close(fd) == -1)	{ //si hay algún error al cerrar el fichero
+		return NULL;
+	}
+	return stack;
+}
+
