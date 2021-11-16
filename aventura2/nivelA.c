@@ -183,7 +183,8 @@ int parse_args(char **args, char *line) {
 
 int execute_line(char *line) {
     char *args[ARGS_SIZE];
-    pid_t pid, status;
+    pid_t pid;
+    int status;
     char command_line[COMMAND_LINE_SIZE];
 
     //copiamos la línea de comandos sin '\n' para guardarlo en el array de structs de los procesos
@@ -194,8 +195,8 @@ int execute_line(char *line) {
         if (check_internal(args) == 0) { // si no es un comando interno
             // es un comando externo 
          //   int bkg = is_background(numArgs, args, mi_comando);
-            pid_t pid1 = fork();
-            if (pid1 == 0){ // el hijo es el que ejecuta el comando externo
+            pid = fork();
+            if (pid == 0){ // el hijo es el que ejecuta el comando externo
               /*  signal(SIGCHLD, SIG_DFL);
                 signal(SIGINT, SIG_IGN); 
                 if (bkg == EXIT_SUCCESS){ // es bg
@@ -205,24 +206,32 @@ int execute_line(char *line) {
                 }
                 is_output_redirection(args);*/
                 //para los comandos del tipo rmdir "prueba dir"
+                #if DEBUGN1 
+                    fprintf(stderr, GRIS "[execute_line()→ PID hijo: %i  (%s)]\n" RESET_FORMATO, getpid(), command_line);
+                #endif 
                 execvp(args[0],args);
                 perror(args[0]);
                 exit(EXIT_FAILURE);
-            } else if(pid1 > 0){ // el padre espera a ser notificado de que el hijo ha acabado
+            } else if(pid > 0){ // el padre espera a ser notificado de que el hijo ha acabado
             // el padre es el mini shell 
               //  if (bkg == EXIT_FAILURE){  // es fg
-                    jobs_list[0].pid = pid1;
-                    jobs_list[0].status= 'E';
-                    while(jobs_list[0].pid != 0){ 
-                       // pause();    //esperamos a que acabe el hijo
-                        wait(NULL);
-                    }
+                #if DEBUGN1 
+                    fprintf(stderr, GRIS "[execute_line()→ PID padre: %i  (%s)]\n" RESET_FORMATO, getpid(), mi_shell);
+                #endif 
+                jobs_list[0].pid = pid;
+                jobs_list[0].status= 'E';
+                strcpy(jobs_list[0].cmd, command_line);
+
+                wait(&status);
+                #if DEBUGN1 
+                    fprintf(stderr, GRIS "[execute_line()→ Proceso hijo %i (%s) finalizado con exit(), estado: %i]\n" RESET_FORMATO, getppid(), command_line, status);
+                #endif 
                /* } else{ // es bg
                     jobs_list_add(pid1,'E', mi_comando);
                     printf("[%d] %d\t%c\t%s \n", n_pids, pid1,'E', mi_comando);
                 }*/
                 
-            }else if(pid1<0) {
+            }else if(pid < 0) {
                 perror("fork()");
                 exit(EXIT_FAILURE);
             }
@@ -241,12 +250,18 @@ int main(int argc, char *argv[]) {
     char line[COMMAND_LINE_SIZE];
     memset(line, 0, COMMAND_LINE_SIZE);
 
+    jobs_list[0].pid = 0;
+    jobs_list[0].status = 'N';
+    memset(jobs_list[0].cmd,0,sizeof(jobs_list[0].cmd));
+
     while (1) {
         if(argc == 1){
-            mi_cmnd = argv[0]; //contiene el comando en el que estamos 
+            strcpy(mi_shell, argv[0]);
         }
-        if (read_line(line)) { // !=NULL
-            execute_line(line);
+        while (1) {
+            if (read_line(line)) { // !=NULL
+                execute_line(line);
+            }
         }
     }
     return 0;
