@@ -8,7 +8,9 @@ la trocea en tokens y chequea si se trata de comandos internos
 
 #define _POSIX_C_SOURCE 200112L
 
-#define DEBUGNA 1 // nivelA
+#define DEBUGNA 0 // nivelA
+#define DEBUGNB 1 // nivelB
+
 
 #define PROMPT_PERSONAL 1 // si no vale 1 el prompt será solo el carácter de PROMPT
 
@@ -30,7 +32,7 @@ la trocea en tokens y chequea si se trata de comandos internos
 #define N_JOBS 24 // cantidad de trabajos permitidos
 
 char const PROMPT = '$';
-char *mi_cmnd;  // variable que contiene el último comando de nuestro shell
+char mi_cmnd[COMMAND_LINE_SIZE];  // variable que contiene el último comando de nuestro shell
 
 
 #include <errno.h>  //errno
@@ -55,6 +57,10 @@ int internal_fg(char **args);
 char *read_line(char *line);
 int parse_args(char **args, char *line);
 int execute_line(char *line);
+
+// nuevos:
+void reaper(int signum);
+void ctrlc(int signum);
 
 static char mi_shell[COMMAND_LINE_SIZE]; //variable global para guardar el nombre del minishell
 
@@ -183,20 +189,29 @@ int parse_args(char **args, char *line) {
 int execute_line(char *line) {
     char *args[ARGS_SIZE];
     pid_t pid;
-    int status;
+    #if DEBUGNA
+        int status;
+    #endif
     char command_line[COMMAND_LINE_SIZE];
 
     //copiamos la línea de comandos sin '\n' para guardarlo en el array de structs de los procesos
     memset(command_line, '\0', sizeof(command_line)); 
     strcpy(command_line, line); //antes de llamar a parse_args() que modifica line
 
+    memset(mi_cmnd, '\0', sizeof(command_line)); 
+    strcpy(mi_cmnd, line); //antes de llamar a parse_args() que modifica line
+
     if (parse_args(args, line) > 0) {
         if (check_internal(args) == 0) { // si no es un comando interno
             // es un comando externo 
+         //   int bkg = is_background(numArgs, args, mi_comando);
             pid = fork();
             if (pid == 0){ // el hijo es el que ejecuta el comando externo
+                signal(SIGCHLD, SIG_DFL);
+                signal(SIGINT, SIG_IGN); 
 
                 //para los comandos del tipo rmdir "prueba dir"
+                printf("holaaaa: mi_cmd=%s y mi_shell=%s", mi_cmnd, mi_shell);
                 #if DEBUGNA 
                     fprintf(stderr, GRIS "[execute_line()→ PID hijo: %i  (%s)]\n" RESET_FORMATO, getpid(), command_line);
                 #endif 
@@ -205,22 +220,19 @@ int execute_line(char *line) {
                 exit(EXIT_FAILURE);
             } else if(pid > 0){ // el padre espera a ser notificado de que el hijo ha acabado
             // el padre es el mini shell 
-              //  if (bkg == EXIT_FAILURE){  // es fg
                 #if DEBUGNA 
                     fprintf(stderr, GRIS "[execute_line()→ PID padre: %i  (%s)]\n" RESET_FORMATO, getpid(), mi_shell);
                 #endif 
                 jobs_list[0].pid = pid;
                 jobs_list[0].status= 'E';
                 strcpy(jobs_list[0].cmd, command_line);
-                wait(&status);
+
+                while(jobs_list[0].pid != 0){  // padre sólo se ejecutará mientras haya un proceso ejecutándose en foreground 
+                    pause();    //esperamos a que acabe el hijo
+                }
                 #if DEBUGNA 
                     fprintf(stderr, GRIS "[execute_line()→ Proceso hijo %i (%s) finalizado con exit(), estado: %i]\n" RESET_FORMATO, pid, command_line, status);
                 #endif 
-               /* } else{ // es bg
-                    jobs_list_add(pid1,'E', mi_comando);
-                    printf("[%d] %d\t%c\t%s \n", n_pids, pid1,'E', mi_comando);
-                }*/
-                
             }else if(pid < 0) {
                 perror("fork()");
                 exit(EXIT_FAILURE);
@@ -232,14 +244,45 @@ int execute_line(char *line) {
 }
 
 
+void reaper(int signum){
+    pid_t pidF; // pid finalizado
+    int estado;
+    signal(SIGCHLD, reaper);
+    while ((pidF = waitpid(-1, &estado, WNOHANG))> 0) {
+        if(jobs_list[0].pid == pidF){ //si es fg
+            jobs_list[0].pid = 0;
+            jobs_list[0].status = 'F';
+            memset(jobs_list[0].cmd,0, sizeof(jobs_list[0].cmd));
+            #if DEUGNB   
+            fprintf(stderr, GRIS "[reaper()→ Proceso hijo %i (%s) finalizado con exit code %i]\n" RESET_FORMATO, jobs_list[0].pid, jobs_list[0].cmd, estado);
+            #endif
+        }
+    }
+}
+void ctrlc(int signum){
+    signal(SIGINT, ctrlc); 
+    if (jobs_list[0].pid>0){  // Si (hay un proceso en foreground) entonces //jobs_list[0].pid > 0
+        if(strcmp(mi_cmnd, jobs_list[0].cmd) != 0){ //  Si (el proceso en foreground NO es el mini shell) entonces 
+            kill(jobs_list[0].pid,SIGTERM);
+            printf("\n");
+        }else {
+            fprintf(stderr, GRIS "[Señal SIGTERM no enviada debido a que el proceso en foreground es el shell]\n" RESET_FORMATO);
+        }        
+    }else {
+        fprintf(stderr, GRIS "Señal SIGTERM no enviada debido a que no hay proceso en foreground\n" RESET_FORMATO);
+    }
+}
 
 int main(int argc, char *argv[]) {
     char line[COMMAND_LINE_SIZE];
     memset(line, 0, COMMAND_LINE_SIZE);
 
     jobs_list[0].pid = 0;
-    jobs_list[0].status = 'N';  // ninguno
+    jobs_list[0].status = 'N';
     memset(jobs_list[0].cmd,0,sizeof(jobs_list[0].cmd));
+    
+    signal(SIGINT, ctrlc);
+    signal(SIGCHLD,reaper);
 
     while (1) {
         if(argc == 1){
