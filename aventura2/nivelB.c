@@ -211,8 +211,7 @@ int execute_line(char *line) {
                 signal(SIGINT, SIG_IGN); 
 
                 //para los comandos del tipo rmdir "prueba dir"
-                printf("holaaaa: mi_cmd=%s y mi_shell=%s", mi_cmnd, mi_shell);
-                #if DEBUGNA 
+                #if DEBUGNA || DEBUGNB
                     fprintf(stderr, GRIS "[execute_line()→ PID hijo: %i  (%s)]\n" RESET_FORMATO, getpid(), command_line);
                 #endif 
                 execvp(args[0],args);
@@ -220,7 +219,7 @@ int execute_line(char *line) {
                 exit(EXIT_FAILURE);
             } else if(pid > 0){ // el padre espera a ser notificado de que el hijo ha acabado
             // el padre es el mini shell 
-                #if DEBUGNA 
+                #if DEBUGNA || DEBUGNB
                     fprintf(stderr, GRIS "[execute_line()→ PID padre: %i  (%s)]\n" RESET_FORMATO, getpid(), mi_shell);
                 #endif 
                 jobs_list[0].pid = pid;
@@ -250,26 +249,27 @@ void reaper(int signum){
     signal(SIGCHLD, reaper);
     while ((pidF = waitpid(-1, &estado, WNOHANG))> 0) {
         if(jobs_list[0].pid == pidF){ //si es fg
+            #if DEBUGNB   
+            fprintf(stderr, GRIS "[reaper()→ Proceso hijo %i (%s) finalizado con exit code %i]\n" RESET_FORMATO, jobs_list[0].pid, jobs_list[0].cmd, estado);
+            #endif
             jobs_list[0].pid = 0;
             jobs_list[0].status = 'F';
             memset(jobs_list[0].cmd,0, sizeof(jobs_list[0].cmd));
-            #if DEUGNB   
-            fprintf(stderr, GRIS "[reaper()→ Proceso hijo %i (%s) finalizado con exit code %i]\n" RESET_FORMATO, jobs_list[0].pid, jobs_list[0].cmd, estado);
-            #endif
         }
     }
 }
 void ctrlc(int signum){
     signal(SIGINT, ctrlc); 
+    fprintf(stderr, GRIS "\n[ctrlc() -> soy el proceso con PID %i (%s) el proceso en foreground es %i (%s)]\n" RESET_FORMATO, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
     if (jobs_list[0].pid>0){  // Si (hay un proceso en foreground) entonces //jobs_list[0].pid > 0
         if(strcmp(mi_cmnd, jobs_list[0].cmd) != 0){ //  Si (el proceso en foreground NO es el mini shell) entonces 
             kill(jobs_list[0].pid,SIGTERM);
             printf("\n");
         }else {
-            fprintf(stderr, GRIS "[Señal SIGTERM no enviada debido a que el proceso en foreground es el shell]\n" RESET_FORMATO);
+            fprintf(stderr, GRIS " [ctrlc()→ Señal %i enviada a %i (%s) por %i]\n" RESET_FORMATO, SIGTERM, jobs_list[0].pid, jobs_list[0].cmd, getpid());
         }        
     }else {
-        fprintf(stderr, GRIS "Señal SIGTERM no enviada debido a que no hay proceso en foreground\n" RESET_FORMATO);
+        fprintf(stderr, GRIS "[ctrlc() -> señal %i no enviada por %i (%s) debido a que no hay proceso en foreground es %i (%s)]\n" RESET_FORMATO, SIGTERM, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
     }
 }
 
