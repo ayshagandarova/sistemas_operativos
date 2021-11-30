@@ -263,7 +263,7 @@ int execute_line(char *line) {
                 
                 //para los comandos del tipo rmdir "prueba dir"
                 #if DEBUGNA || DEBUGNB || DEBUGNC
-                    fprintf(stderr, GRIS "[execute_line()→ PID hijo: %i  (%s)]\n" RESET_FORMATO, getpid(), command_line);
+                    //fprintf(stderr, GRIS "[execute_line()→ PID hijo: %i  (%s)]\n" RESET_FORMATO, getpid(), command_line);
                 #endif 
                 execvp(args[0],args);
                 perror(args[0]);
@@ -272,6 +272,7 @@ int execute_line(char *line) {
             // el padre es el mini shell 
                 #if DEBUGNA || DEBUGNB || DEBUGNC
                     fprintf(stderr, GRIS "[execute_line()→ PID padre: %i  (%s)]\n" RESET_FORMATO, getpid(), mi_shell);
+                    fprintf(stderr, GRIS "[execute_line()→ PID hijo: %i  (%s)]\n" RESET_FORMATO, getpid(), command_line);
                 #endif 
                 if (bkg == 1){ // si es foreground
                     jobs_list[0].pid = pid;
@@ -349,19 +350,19 @@ void ctrlz(int signum) {
     signal(SIGTSTP,ctrlz);
     fprintf(stderr, GRIS "\n[ctrlz() -> soy el proceso con PID %i (%s) el proceso en foreground es %i (%s)]\n" RESET_FORMATO, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
     if (jobs_list[0].pid > 0){
-        fprintf(stderr, GRIS "\n[KUKUUKKJKJJUctrlz() -> despues del primer if]\n" RESET_FORMATO);
-        if (strcmp(mi_cmnd, jobs_list[0].cmd) != 0){
+        if (strcmp(mi_shell, jobs_list[0].cmd) != 0){
             kill(jobs_list[0].pid,SIGSTOP); 
-            fprintf(stderr, GRIS "\n[KUKUUKKJKJJUctrlz() -> despues del primer if]\n" RESET_FORMATO);
+            fprintf(stderr, GRIS "[ctrlz() -> Señal %i no enviada por %i (%s) debido a que no hay proceso en foreground es %i (%s)]\n" RESET_FORMATO, SIGTSTP, jobs_list[0].pid, jobs_list[0].cmd, getpid(), mi_shell);
             jobs_list[0].status = 'D';
             jobs_list_add(jobs_list[0].pid, jobs_list[0].status, jobs_list[0].cmd);
             jobs_list[0].pid = 0;
-            jobs_list[0].status = 'F';
+            jobs_list[0].status = ' ';
             strcpy(jobs_list[0].cmd,"");
             printf("\n[%d]\t%d\t%c\t%s\n",n_pids,jobs_list[n_pids].pid,
             jobs_list[n_pids].status,jobs_list[n_pids].cmd);
         }
     }
+    signal(SIGTSTP,ctrlz);
 }
 
 
@@ -373,7 +374,7 @@ int main(int argc, char *argv[]) {
     jobs_list[0].status = 'N';
     memset(jobs_list[0].cmd,0,sizeof(jobs_list[0].cmd));
     
-    signal(SIGTSTP, SIG_IGN); // ctrlz
+    signal(SIGTSTP, ctrlz); // ctrlz
     signal(SIGINT, ctrlc);
     signal(SIGCHLD,reaper);
     
