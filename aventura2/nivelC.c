@@ -9,7 +9,7 @@ la trocea en tokens y chequea si se trata de comandos internos
 #define _POSIX_C_SOURCE 200112L
 
 #define DEBUGNA 0 // nivelA
-#define DEBUGNB 1 // nivelB
+#define DEBUGNB 0 // nivelB
 #define DEBUGNC 1 // nivelc
 
 
@@ -260,11 +260,7 @@ int execute_line(char *line) {
                 signal(SIGCHLD, SIG_DFL);
                 signal(SIGINT, SIG_IGN);  // ctrlc
                 signal(SIGTSTP, SIG_IGN); // ctrlz
-                
-                //para los comandos del tipo rmdir "prueba dir"
-                #if DEBUGNA || DEBUGNB
-                    fprintf(stderr, GRIS "[execute_line()→ PID hijo: %i  (%s)]\n" RESET_FORMATO, getpid(), command_line);
-                #endif 
+
                 execvp(args[0],args);
                 perror(args[0]);
                 exit(EXIT_FAILURE);
@@ -320,6 +316,7 @@ void reaper(int signum){
                 if(WIFEXITED(estado)){
                     printf("\nTerminado PID %d (%s) en jobs_list[%d] con status %d\n",
                     jobs_list[pos].pid,jobs_list[pos].cmd,pos,WEXITSTATUS(estado));
+                    imprimir_prompt();
                 }else{
                     if(WIFSIGNALED(estado)){
                         printf("Terminado PID %d (%s) en jobs_list[%d] con status %d\n",
@@ -332,8 +329,10 @@ void reaper(int signum){
                 fprintf(stderr, GRIS "[reaper()→ Proceso hijo %i en background (%s) finalizado con exit code %i]\n" RESET_FORMATO, jobs_list[pos].pid, jobs_list[pos].cmd, estado);
                 jobs_list_remove(pos);
             }
+            
         }
     }
+    
 }
 
 
@@ -349,13 +348,14 @@ void ctrlc(int signum){
         }        
     }else {
         fprintf(stderr, GRIS "[ctrlc() -> Señal %i no enviada por %i (%s) debido a que no hay proceso en foreground es %i (%s)]\n" RESET_FORMATO, SIGTERM, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
+        imprimir_prompt();
     }
 }
 
 void ctrlz(int signum) {
     signal(SIGTSTP,ctrlz);
-    fprintf(stderr, GRIS "\n[ctrlz() -> soy el proceso con PID %i (%s) el proceso en foreground es %i (%s)]\n" RESET_FORMATO, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
     if (jobs_list[0].pid > 0){
+        fprintf(stderr, GRIS "\n[ctrlz() -> soy el proceso con PID %i (%s) el proceso en foreground es %i (%s)]\n" RESET_FORMATO, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
         if (strcmp(mi_shell, jobs_list[0].cmd) != 0){
             kill(jobs_list[0].pid,SIGSTOP); 
             fprintf(stderr, GRIS "[ctrlz() -> Señal %i no enviada por %i (%s) debido a que no hay proceso en foreground es %i (%s)]\n" RESET_FORMATO, SIGTSTP, jobs_list[0].pid, jobs_list[0].cmd, getpid(), mi_shell);
@@ -367,6 +367,9 @@ void ctrlz(int signum) {
             printf("[%d]\t%d\t%c\t%s\n",n_pids,jobs_list[n_pids].pid,
                 jobs_list[n_pids].status,jobs_list[n_pids].cmd);
         }
+    }else {
+        printf("\n");
+        imprimir_prompt();
     }
     
 }
@@ -399,7 +402,89 @@ int main(int argc, char *argv[]) {
 }
 
 
+/*
+
+NIVEL D
+
+int is_output_redirection(char **args){
+    int i = 0;
+    while(args[i] != NULL ){
+        if(strcmp(args[i], ">") == 0){
+            args[i] = NULL;
+            int fd = open(args[i+1], O_WRONLY | O_CREAT |O_TRUNC, S_IRUSR | S_IWUSR);
+            dup2(fd,1);
+            close(fd);
+            return 1;
+        }
+        i++;
+    }
+    return 0;
+}
+
+int internal_fg(char **args){ 
+    int pos = atoi(args[1]);
+    //si se corresponde a la sintaxis: "fg numero"
+    if (pos != 0 && args[1] != NULL && args[2] == NULL){
+        if (pos <= n_pids  && pos != 0) { 
+            if (jobs_list[pos].status == 'D'){ 
+                //si esta detenido, lo continuamos
+                kill(jobs_list[pos].pid, SIGCONT);
+            }
+            int i = 0;
+            //si hay algún cáracter "&"" busca su posición
+            while(jobs_list[pos].command_line[i] != 0 && jobs_list[pos].command_line[i] != '&'){
+                i++;
+            }
+            //y si está lo eliminamos
+            if (jobs_list[pos].command_line[i] == '&'){
+                jobs_list[pos].command_line[i] = '\0';
+            }
+            jobs_list[0].pid = jobs_list[pos].pid;
+            strcpy(jobs_list[0].command_line,jobs_list[pos].command_line);
+            jobs_list[0].status = 'E';
+            jobs_list_remove(pos);
+            printf("%s\n",jobs_list[0].command_line);  
+            while (jobs_list[0].pid > 0){
+                pause();    //esperamos a que acabe el proceso
+            }
+        }else {
+            printf("No existe este trabajo, para ver los trabajos "
+         "introduzca el comando jobs\n");
+            return EXIT_FAILURE;
+        }
+    }else{
+        printf("Sintaxis incorrecta. Uso: fg numero\n");
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
 
 
 
+int internal_bg(char **args){
+    int pos = atoi(args[1]);
+    //comprobamos si se corresponde a la sintaxis: "bg numero"
+    if (pos != 0 && args[1] != NULL && args[2] == NULL){
+        if (pos <= n_pids  && pos != 0) {
+            if (jobs_list[pos].status == 'E'){
+                printf("Error, el trabajo ya esta en segundo plano\n");
+            }else { //si es "D"
+                jobs_list[pos].status = 'E';
+                strcat(jobs_list[pos].command_line," &");
+                kill(jobs_list[pos].pid,SIGCONT);
+                printf("[%d]\t%d\t%c\t%s\n",pos,jobs_list[pos].pid,jobs_list[pos].status,jobs_list[pos].command_line);
+            }
+        }else {
+            printf("Error, no existe este trabajo, "
+                    "consulta los trabajos con el comando jobs\n");
+            return EXIT_FAILURE;
+        }
+    }else{
+        printf("Sintaxis incorrecta. Uso: bg numero");
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
 
+
+*/
