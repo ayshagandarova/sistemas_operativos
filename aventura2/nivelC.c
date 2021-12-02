@@ -197,11 +197,10 @@ int is_background(char **args){
     for (int i = 0; i < ARGS_SIZE && args[i] != NULL; i++){
         if (strcmp(args[i], "&") == 0){
             args[i] = NULL;
-            return 0; // 0
+            return 0; // background
         }
     }
-    return 1;
-    
+    return 1; //foreground
 }
 
 
@@ -213,6 +212,7 @@ int jobs_list_add(pid_t pid, char status, char *cmd){
         strcpy(jobs_list[n_pids].cmd, cmd);
     }else {
         // hemos llegado al número máximo de trabajos
+        printf("Numero de trabajos maximo alcanzado, libere alguno\n");
     }
     return EXIT_SUCCESS;
 }
@@ -258,12 +258,12 @@ int execute_line(char *line) {
             pid = fork();
             if (pid == 0){ // el hijo es el que ejecuta el comando externo
                 signal(SIGCHLD, SIG_DFL);
-                signal(SIGTSTP, SIG_IGN); // ctrlz
                 signal(SIGINT, SIG_IGN);  // ctrlc
+                signal(SIGTSTP, SIG_IGN); // ctrlz
                 
                 //para los comandos del tipo rmdir "prueba dir"
-                #if DEBUGNA || DEBUGNB || DEBUGNC
-                    //fprintf(stderr, GRIS "[execute_line()→ PID hijo: %i  (%s)]\n" RESET_FORMATO, getpid(), command_line);
+                #if DEBUGNA || DEBUGNB
+                    fprintf(stderr, GRIS "[execute_line()→ PID hijo: %i  (%s)]\n" RESET_FORMATO, getpid(), command_line);
                 #endif 
                 execvp(args[0],args);
                 perror(args[0]);
@@ -277,13 +277,12 @@ int execute_line(char *line) {
                 if (bkg == 1){ // si es foreground
                     jobs_list[0].pid = pid;
                     jobs_list[0].status= 'E';
-                    strcpy(jobs_list[0].cmd, command_line);
+                    strcpy(jobs_list[0].cmd, mi_cmnd);
 
                     while(jobs_list[0].pid != 0){  // padre sólo se ejecutará mientras haya un proceso ejecutándose en foreground 
                         pause();    //esperamos a que acabe el hijo
                     }
                 }else { // es background bkg == 0
-                    
                     jobs_list_add(pid,'E', command_line);
                     printf("[%d] %d\t%c\t%s \n", n_pids, pid,'E', mi_cmnd);
                 }
@@ -292,7 +291,7 @@ int execute_line(char *line) {
                     fprintf(stderr, GRIS "[execute_line()→ Proceso hijo %i (%s) finalizado con exit(), estado: %i]\n" RESET_FORMATO, pid, command_line, status);
                 #endif 
             }else if(pid < 0) {
-                perror("fork()");
+                perror("Error fork():");
                 exit(EXIT_FAILURE);
             }
             return 1;
@@ -318,12 +317,21 @@ void reaper(int signum){
         
             int pos = jobs_list_find(pidF);
             if (pos != -1){
-                fprintf(stderr, GRIS "[reaper()→ Proceso hijo %i en background (%s) finalizado con exit code %i]\n" RESET_FORMATO, jobs_list[pos].pid, jobs_list[pos].cmd, estado);
+                if(WIFEXITED(estado)){
+                    printf("\nTerminado PID %d (%s) en jobs_list[%d] con status %d\n",
+                    jobs_list[pos].pid,jobs_list[pos].cmd,pos,WEXITSTATUS(estado));
+                }else{
+                    if(WIFSIGNALED(estado)){
+                        printf("Terminado PID %d (%s) en jobs_list[%d] con status %d\n",
+                        jobs_list[pos].pid,jobs_list[pos].cmd,pos,WTERMSIG(estado));
+                    }
+                }
+                /*
                 printf("\nTerminado PID %d (%s) en jobs_list[%d] con status %d\n",
-                jobs_list[pos].pid,jobs_list[pos].cmd,pos,estado);
+                jobs_list[pos].pid,jobs_list[pos].cmd,pos,estado);*/
+                fprintf(stderr, GRIS "[reaper()→ Proceso hijo %i en background (%s) finalizado con exit code %i]\n" RESET_FORMATO, jobs_list[pos].pid, jobs_list[pos].cmd, estado);
                 jobs_list_remove(pos);
             }
-
         }
     }
 }
@@ -334,9 +342,8 @@ void ctrlc(int signum){
 
     fprintf(stderr, GRIS "\n[ctrlc() -> soy el proceso con PID %i (%s) el proceso en foreground es %i (%s)]\n" RESET_FORMATO, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
     if (jobs_list[0].pid>0){  // Si (hay un proceso en foreground) entonces //jobs_list[0].pid > 0
-        if(strcmp(mi_cmnd, jobs_list[0].cmd) != 0){ //  Si (el proceso en foreground NO es el mini shell) entonces 
+        if(strcmp(mi_shell, jobs_list[0].cmd) != 0){ //  Si (el proceso en foreground NO es el mini shell) entonces 
             kill(jobs_list[0].pid,SIGTERM);
-            printf("\n");
         }else {
             fprintf(stderr, GRIS " [ctrlc()→ Señal %i enviada a %i (%s) por %i]\n" RESET_FORMATO, SIGTERM, jobs_list[0].pid, jobs_list[0].cmd, getpid());
         }        
@@ -344,7 +351,6 @@ void ctrlc(int signum){
         fprintf(stderr, GRIS "[ctrlc() -> Señal %i no enviada por %i (%s) debido a que no hay proceso en foreground es %i (%s)]\n" RESET_FORMATO, SIGTERM, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
     }
 }
-
 
 void ctrlz(int signum) {
     signal(SIGTSTP,ctrlz);
@@ -356,13 +362,13 @@ void ctrlz(int signum) {
             jobs_list[0].status = 'D';
             jobs_list_add(jobs_list[0].pid, jobs_list[0].status, jobs_list[0].cmd);
             jobs_list[0].pid = 0;
-            jobs_list[0].status = ' ';
+            jobs_list[0].status = 'F';
             strcpy(jobs_list[0].cmd,"");
-            printf("\n[%d]\t%d\t%c\t%s\n",n_pids,jobs_list[n_pids].pid,
-            jobs_list[n_pids].status,jobs_list[n_pids].cmd);
+            printf("[%d]\t%d\t%c\t%s\n",n_pids,jobs_list[n_pids].pid,
+                jobs_list[n_pids].status,jobs_list[n_pids].cmd);
         }
     }
-    signal(SIGTSTP,ctrlz);
+    
 }
 
 
