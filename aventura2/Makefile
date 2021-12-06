@@ -3,10 +3,10 @@ CC=gcc
 CFLAGS=-c -g -Wall -std=c99
 #LDFLAGS=-lreadline -Incurses #activar si se usa readline
  
-SOURCES=nivelA.c nivelB.c nivelC.c nivelD.c my_shell.c
+SOURCES=nivelA.c nivelB.c nivelC.c contar.c nivelD.c my_shell.c
 LIBRARIES= #.o
 INCLUDES= #.h
-PROGRAMS=nivelA nivelB nivelC nivelD my_shell
+PROGRAMS=nivelA nivelB nivelC contar nivelD my_shell
 OBJS=$(SOURCES:.c=.o)
  
 all: $(OBJS) $(PROGRAMS)
@@ -34,4 +34,4 @@ my_shell: my_shell.o
  
 .PHONY: clean
 clean:
-	rm -rf *.o *~ *.tmp $(PROGRAMS)
+	rm -rf *.o *~ *.tmp $(PROGRAMS) 

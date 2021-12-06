@@ -250,7 +250,7 @@ void reaper(int signum){
     while ((pidF = waitpid(-1, &estado, WNOHANG))> 0) {
         if(jobs_list[0].pid == pidF){ //si es fg
             #if DEBUGNB   
-                fprintf(stderr, GRIS "[reaper()→ Proceso hijo %i (%s) finalizado con exit code %i]\n" RESET_FORMATO, jobs_list[0].pid, jobs_list[0].cmd, estado);
+                fprintf(stderr, GRIS "[reaper()→ Proceso hijo %i (%s) finalizado por señal %i]\n" RESET_FORMATO, jobs_list[0].pid, jobs_list[0].cmd, estado);
             #endif
             jobs_list[0].pid = 0;
             jobs_list[0].status = 'F';
@@ -259,17 +259,19 @@ void reaper(int signum){
     }
 }
 void ctrlc(int signum){
-    signal(SIGINT, ctrlc); 
+    signal(SIGINT, ctrlc);
     fprintf(stderr, GRIS "\n[ctrlc() -> soy el proceso con PID %i (%s) el proceso en foreground es %i (%s)]\n" RESET_FORMATO, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
     if (jobs_list[0].pid>0){  // Si (hay un proceso en foreground) entonces //jobs_list[0].pid > 0
-        if(strcmp(mi_cmnd, jobs_list[0].cmd) != 0){ //  Si (el proceso en foreground NO es el mini shell) entonces 
+        if(strcmp(mi_shell, jobs_list[0].cmd) != 0){ //  Si (el proceso en foreground NO es el mini shell) entonces 
             kill(jobs_list[0].pid,SIGTERM);
-            printf("\n");
-        }else {
-            fprintf(stderr, GRIS " [ctrlc()→ Señal %i enviada a %i (%s) por %i]\n" RESET_FORMATO, SIGTERM, jobs_list[0].pid, jobs_list[0].cmd, getpid());
-        }        
+            fprintf(stderr, GRIS " [ctrlc()→ Señal %i enviada a %i (%s) por %i (%s)]\n" RESET_FORMATO, SIGTERM, jobs_list[0].pid, jobs_list[0].cmd, getpid(), mi_shell);
+        }  else {
+            fprintf(stderr, GRIS "[ctrlc() -> Señal %i no enviada por %i (%s) debido a que no hay proceso en foreground es %i (%s)]\n" RESET_FORMATO, SIGTERM, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
+            imprimir_prompt();
+        }
     }else {
-        fprintf(stderr, GRIS "[ctrlc() -> señal %i no enviada por %i (%s) debido a que no hay proceso en foreground es %i (%s)]\n" RESET_FORMATO, SIGTERM, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
+        fprintf(stderr, GRIS "[ctrlc() -> Señal %i no enviada por %i (%s) debido a que el proceso en foreground es el shell]\n" RESET_FORMATO, SIGTERM, getpid(), mi_shell);
+        imprimir_prompt();
     }
 }
 
