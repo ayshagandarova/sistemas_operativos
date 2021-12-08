@@ -11,10 +11,9 @@ la trocea en tokens y chequea si se trata de comandos internos
 #define _POSIX_C_SOURCE 200112L
 
 #define DEBUGNA 0 // nivelA
-#define DEBUGNB 0 // nivelB
-#define DEBUGNC 0 // nivelC
+#define DEBUGNB 0 // nivelC
 #define DEBUGND 1 // nivelD
-
+ 
 #define PROMPT_PERSONAL 1 // si no vale 1 el prompt será solo el carácter de PROMPT
 
 #define RESET_FORMATO "\033[0m"

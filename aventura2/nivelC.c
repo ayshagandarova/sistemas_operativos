@@ -315,6 +315,7 @@ void reaper(int signum){
             jobs_list[0].pid = 0;
             jobs_list[0].status = 'F';
             memset(jobs_list[0].cmd,0, sizeof(jobs_list[0].cmd));
+            
         }else {  // si es bkg
             int pos = jobs_list_find(pidF);   // buscamos la posición del trbajo
             if (pos != -1){  // si existe

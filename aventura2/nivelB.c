@@ -240,7 +240,6 @@ int execute_line(char *line) {
     return 0;
 }
 
-
 void reaper(int signum){
     pid_t pidF; // pid finalizado
     int estado;

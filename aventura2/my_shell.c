@@ -409,10 +409,12 @@ void ctrlc(int signum){
             fprintf(stderr, GRIS "\n[ctrlc() -> Señal %i no enviada por %i (%s) debido a que no hay proceso en foreground]\n" RESET_FORMATO, SIGTERM, getpid(), mi_shell);
         #endif
     }
+    printf("\n");
 }
 
 void ctrlz(int signum) {
     signal(SIGTSTP,ctrlz);
+    printf("\n");
     if (jobs_list[0].pid > 0){  // Si hay un proceso en foreground
         #if DEBUGNB || DEBUGNC || DEBUGND 
             fprintf(stderr, GRIS "\n[ctrlz() -> soy el proceso con PID %i (%s) el proceso en foreground es %i (%s)]\n" RESET_FORMATO, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
@@ -440,7 +442,7 @@ void ctrlz(int signum) {
             printf("\n");
             imprimir_prompt();
         #endif
-    }   
+    }  
 }
 
 int is_output_redirection(char **args){
