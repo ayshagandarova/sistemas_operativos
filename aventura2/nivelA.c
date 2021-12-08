@@ -1,3 +1,5 @@
+// Aisha Gandarova, Jantan Pan y Emilio Salvador Fuster
+
 /*
 nivelA.c - Adelaida Delgado (adaptación de nivel3.c)
 Cada nivel incluye la funcionalidad de la anterior.
@@ -188,41 +190,33 @@ int execute_line(char *line) {
 
     //copiamos la línea de comandos sin '\n' para guardarlo en el array de structs de los procesos
     memset(command_line, '\0', sizeof(command_line)); 
-    strcpy(command_line, line); //antes de llamar a parse_args() que modifica line
+    strcpy(command_line, line); 
 
     if (parse_args(args, line) > 0) {
         if (check_internal(args) == 0) { // si no es un comando interno
-            // es un comando externo 
+            // Es un comando externo 
             pid = fork();
             if (pid == 0){ // el hijo es el que ejecuta el comando externo
-
-                //para los comandos del tipo rmdir "prueba dir"
                 #if DEBUGNA 
                     fprintf(stderr, GRIS "[execute_line()→ PID hijo: %i  (%s)]\n" RESET_FORMATO, getpid(), command_line);
                 #endif 
                 execvp(args[0],args);
-                perror(args[0]);
+                perror(args[0]); // si hay error en execvp()
                 exit(EXIT_FAILURE);
             } else if(pid > 0){ // el padre espera a ser notificado de que el hijo ha acabado
-            // el padre es el mini shell 
-              //  if (bkg == EXIT_FAILURE){  // es fg
                 #if DEBUGNA 
                     fprintf(stderr, GRIS "[execute_line()→ PID padre: %i  (%s)]\n" RESET_FORMATO, getpid(), mi_shell);
                 #endif 
+                // Indicamos el proceso hijo que se ejecuta en foreground
                 jobs_list[0].pid = pid;
                 jobs_list[0].status= 'E';
                 strcpy(jobs_list[0].cmd, command_line);
-                wait(&status);
+                wait(&status);  // esperamos a que acabe el hijo
                 #if DEBUGNA 
                     fprintf(stderr, GRIS "[execute_line()→ Proceso hijo %i (%s) finalizado con exit(), estado: %i]\n" RESET_FORMATO, pid, command_line, status);
-                #endif 
-               /* } else{ // es bg
-                    jobs_list_add(pid1,'E', mi_comando);
-                    printf("[%d] %d\t%c\t%s \n", n_pids, pid1,'E', mi_comando);
-                }*/
-                
-            }else if(pid < 0) {
-                perror("fork()");
+                #endif                 
+            }else if(pid < 0) { // si hay un error en el fork
+                perror("fork(): ");
                 exit(EXIT_FAILURE);
             }
             return 1;
@@ -237,16 +231,17 @@ int main(int argc, char *argv[]) {
     char line[COMMAND_LINE_SIZE];
     memset(line, 0, COMMAND_LINE_SIZE);
 
+    // Inicializamos el array de los trabajos
     jobs_list[0].pid = 0;
     jobs_list[0].status = 'N';  // ninguno
     memset(jobs_list[0].cmd,0,sizeof(jobs_list[0].cmd));
 
     while (1) {
-        if(argc == 1){
-            strcpy(mi_shell, argv[0]);
+        if(argc == 1){  // guardamos el nombre del programa ej: ./nivelA
+            strcpy(mi_shell, argv[0]); 
         }
         while (1) {
-            if (read_line(line)) { // !=NULL
+            if (read_line(line)) { 
                 execute_line(line);
             }
         }

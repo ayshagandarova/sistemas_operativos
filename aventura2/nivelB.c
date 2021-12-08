@@ -1,3 +1,5 @@
+// Aisha Gandarova, Jantan Pan y Emilio Salvador Fuster
+
 /*
 nivelA.c - Adelaida Delgado (adaptación de nivel3.c)
 Cada nivel incluye la funcionalidad de la anterior.
@@ -192,48 +194,44 @@ int execute_line(char *line) {
     #if DEBUGNA
         int status;
     #endif
-    char command_line[COMMAND_LINE_SIZE];
 
-    //copiamos la línea de comandos sin '\n' para guardarlo en el array de structs de los procesos
-    memset(command_line, '\0', sizeof(command_line)); 
-    strcpy(command_line, line); //antes de llamar a parse_args() que modifica line
-
-    memset(mi_cmnd, '\0', sizeof(command_line)); 
-    strcpy(mi_cmnd, line); //antes de llamar a parse_args() que modifica line
+    // copiamos la línea de comandos sin '\n' para guardarlo en el array de structs de los procesos
+    memset(mi_cmnd, '\0', COMMAND_LINE_SIZE); 
+    strcpy(mi_cmnd, line); 
 
     if (parse_args(args, line) > 0) {
         if (check_internal(args) == 0) { // si no es un comando interno
             // es un comando externo 
-         //   int bkg = is_background(numArgs, args, mi_comando);
             pid = fork();
             if (pid == 0){ // el hijo es el que ejecuta el comando externo
-                signal(SIGCHLD, SIG_DFL);
-                signal(SIGINT, SIG_IGN); 
+                signal(SIGCHLD, SIG_DFL); // reaper
+                signal(SIGINT, SIG_IGN);  // ctrlc
 
-                //para los comandos del tipo rmdir "prueba dir"
                 #if DEBUGNA || DEBUGNB
-                    fprintf(stderr, GRIS "[execute_line()→ PID hijo: %i  (%s)]\n" RESET_FORMATO, getpid(), command_line);
+                    fprintf(stderr, GRIS "[execute_line()→ PID hijo: %i  (%s)]\n" RESET_FORMATO, getpid(), mi_cmnd);
                 #endif 
+
                 execvp(args[0],args);
-                perror(args[0]);
+                perror(args[0]);  // si hay error en execvp()
                 exit(EXIT_FAILURE);
             } else if(pid > 0){ // el padre espera a ser notificado de que el hijo ha acabado
-            // el padre es el mini shell 
                 #if DEBUGNA || DEBUGNB
                     fprintf(stderr, GRIS "[execute_line()→ PID padre: %i  (%s)]\n" RESET_FORMATO, getpid(), mi_shell);
                 #endif 
+                // Indicamos el proceso hijo que se ejecuta en foreground
                 jobs_list[0].pid = pid;
                 jobs_list[0].status= 'E';
-                strcpy(jobs_list[0].cmd, command_line);
+                strcpy(jobs_list[0].cmd, mi_cmnd);
 
-                while(jobs_list[0].pid != 0){  // padre sólo se ejecutará mientras haya un proceso ejecutándose en foreground 
-                    pause();    //esperamos a que acabe el hijo
+                // esperamos a que acabe el hijo
+                while(jobs_list[0].pid != 0){  
+                    pause();  
                 }
                 #if DEBUGNA 
                     fprintf(stderr, GRIS "[execute_line()→ Proceso hijo %i (%s) finalizado con exit(), estado: %i]\n" RESET_FORMATO, pid, command_line, status);
                 #endif 
-            }else if(pid < 0) {
-                perror("fork()");
+            }else if(pid < 0) { // si hay un error en el fork
+                perror("fork(): ");
                 exit(EXIT_FAILURE);
             }
             return 1;
@@ -247,31 +245,39 @@ void reaper(int signum){
     pid_t pidF; // pid finalizado
     int estado;
     signal(SIGCHLD, reaper);
-    while ((pidF = waitpid(-1, &estado, WNOHANG))> 0) {
-        if(jobs_list[0].pid == pidF){ //si es fg
+    while ((pidF = waitpid(-1, &estado, WNOHANG))> 0) {  // espera a que acabe el trabajo 
+        if(jobs_list[0].pid == pidF){ //si es foreground
             #if DEBUGNB   
                 fprintf(stderr, GRIS "[reaper()→ Proceso hijo %i (%s) finalizado por señal %i]\n" RESET_FORMATO, jobs_list[0].pid, jobs_list[0].cmd, estado);
             #endif
+            // Limpiamos la posición de jobs_list[0]
             jobs_list[0].pid = 0;
             jobs_list[0].status = 'F';
             memset(jobs_list[0].cmd,0, sizeof(jobs_list[0].cmd));
         }
     }
 }
+
 void ctrlc(int signum){
     signal(SIGINT, ctrlc);
-    fprintf(stderr, GRIS "\n[ctrlc() -> soy el proceso con PID %i (%s) el proceso en foreground es %i (%s)]\n" RESET_FORMATO, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
-    if (jobs_list[0].pid>0){  // Si (hay un proceso en foreground) entonces //jobs_list[0].pid > 0
-        if(strcmp(mi_shell, jobs_list[0].cmd) != 0){ //  Si (el proceso en foreground NO es el mini shell) entonces 
+    #if DEBUGNB
+        fprintf(stderr, GRIS "\n[ctrlc() -> soy el proceso con PID %i (%s) el proceso en foreground es %i (%s)]" RESET_FORMATO, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
+    #endif
+    if (jobs_list[0].pid>0){  // Si hay un proceso en foreground
+        if(strcmp(mi_shell, jobs_list[0].cmd) != 0){ //  Si el proceso en foreground NO es el mini shell
             kill(jobs_list[0].pid,SIGTERM);
-            fprintf(stderr, GRIS " [ctrlc()→ Señal %i enviada a %i (%s) por %i (%s)]\n" RESET_FORMATO, SIGTERM, jobs_list[0].pid, jobs_list[0].cmd, getpid(), mi_shell);
-        }  else {
-            fprintf(stderr, GRIS "[ctrlc() -> Señal %i no enviada por %i (%s) debido a que no hay proceso en foreground es %i (%s)]\n" RESET_FORMATO, SIGTERM, getpid(), mi_shell, jobs_list[0].pid, jobs_list[0].cmd);
-            imprimir_prompt();
+            #if DEBUGNB 
+                fprintf(stderr, GRIS "\n[ctrlc()→ Señal %i enviada a %i (%s) por %i (%s)]\n" RESET_FORMATO, SIGTERM, jobs_list[0].pid, jobs_list[0].cmd, getpid(), mi_shell);
+            #endif
+        }  else {  // Si el proceso en foreground es el mini shell
+            #if DEBUGNB 
+                fprintf(stderr, GRIS "\n[ctrlc() -> Señal %i no enviada por %i (%s) debido a que el proceso en foreground es el shell]" RESET_FORMATO, SIGTERM, getpid(), mi_shell);
+            #endif
         }
-    }else {
-        fprintf(stderr, GRIS "[ctrlc() -> Señal %i no enviada por %i (%s) debido a que el proceso en foreground es el shell]\n" RESET_FORMATO, SIGTERM, getpid(), mi_shell);
-        imprimir_prompt();
+    }else {   // Si no hay un proceso en foreground
+        #if DEBUGNB 
+            fprintf(stderr, GRIS "\n[ctrlc() -> Señal %i no enviada por %i (%s) debido a que no hay proceso en foreground]\n" RESET_FORMATO, SIGTERM, getpid(), mi_shell);
+        #endif
     }
 }
 
@@ -279,15 +285,17 @@ int main(int argc, char *argv[]) {
     char line[COMMAND_LINE_SIZE];
     memset(line, 0, COMMAND_LINE_SIZE);
 
+    // Inicializamos el array de los trabajos
     jobs_list[0].pid = 0;
     jobs_list[0].status = 'N';
     memset(jobs_list[0].cmd,0,sizeof(jobs_list[0].cmd));
     
-    signal(SIGINT, ctrlc);
-    signal(SIGCHLD,reaper);
+    // Escuchar las señales SIGCHLD y SIGINT
+    signal(SIGINT, ctrlc); 
+    signal(SIGCHLD,reaper); 
 
     while (1) {
-        if(argc == 1){
+        if(argc == 1){  // guardamos el nombre del programa ej: ./nivelA
             strcpy(mi_shell, argv[0]);
         }
         while (1) {

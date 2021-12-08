@@ -1,7 +1,7 @@
 # Adelaida
 CC=gcc
 CFLAGS=-c -g -Wall -std=c99
-#LDFLAGS=-lreadline -Incurses #activar si se usa readline
+LDFLAGS=-lreadline -Incurses #activar si se usa readline
  
 SOURCES=nivelA.c nivelB.c nivelC.c contar.c nivelD.c my_shell.c
 LIBRARIES= #.o
